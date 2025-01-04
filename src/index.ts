@@ -3,8 +3,8 @@ import config from './config/api.config.js'
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { User } from './models/user.model';
-import { v1 as uuid } from 'uuid';
 import { randomInt } from 'crypto';
+import { GraphQLError } from 'graphql';
 
 
 
@@ -80,6 +80,14 @@ const resolvers = {
     },
     Mutation: {
         addUser: (_:any, args:User) => {
+            if (users.find((user: User) => user.name === args.name)) {
+                throw new GraphQLError('User already exists', {
+                    extensions: {
+                        code: 'BAD_USER_INPUT'
+                    }
+                })
+            }
+
             const newUser = {
                 ...args, id: randomInt(1, 1000)
             }
