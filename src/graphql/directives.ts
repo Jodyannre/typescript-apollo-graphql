@@ -1,6 +1,18 @@
 import { mapSchema, getDirective, MapperKind } from '@graphql-tools/utils'
 import { defaultFieldResolver, GraphQLResolveInfo } from 'graphql'
 
+/*
+    Directivas built-in
+
+@deprecated(reason:String)
+@skip(if:Boolean)
+@include(if:Boolean)
+
+*/
+
+
+
+
 export function countryCodeDirectiveTransformer(schema, directiveName) {
 
     return mapSchema(schema, {
