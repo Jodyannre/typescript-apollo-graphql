@@ -1,16 +1,20 @@
-import { fetchData } from './services/fetch.service.js'
+import { fetchData, fetchUser } from './services/fetch.service.js'
 import config from './config/api.config.js'
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
-
+import { User } from './models/user.model';
+import { v1 as uuid } from 'uuid';
+import { randomInt } from 'crypto';
 
 
 
 // Origen de datos
 const data = await fetchData(config.api.url)
+const users = await fetchUser()
+
 // Definición de tipos
 
-const typeDefs: string = `
+const typeDefs = `
     type Rating {
         rate: Int
         count: Int
@@ -26,9 +30,35 @@ const typeDefs: string = `
         rating: Rating
     }
 
+    type User {
+        id: ID!
+        name: String!
+        surname: String!
+        street: String!
+        zipCode: Int!
+        city: String!
+        phone: String
+        address: String
+    }
+
     type Query {
         products: [Product]
         product(id:ID!): Product
+        users: [User]
+        userCount: Int!
+        findUserByName(name: String!): User
+        findUserById(id: ID!): User
+    }
+
+    type Mutation {
+        addUser(
+            name: String!, 
+            surname: String!, 
+            street: String!, 
+            zipCode: Int!, 
+            city: String!, 
+            phone: String
+        ): User
     }
 ` 
 
@@ -37,9 +67,25 @@ const typeDefs: string = `
 // Solucionadores
 
 const resolvers = {
+    User: {
+        address: (parent: any) => `${parent.street}, ${parent.zipCode}, ${parent.city}`
+    },
     Query: {
         products: () => data,
-        product: (_:any, args:any) => data.find((product: any) => product.id === parseInt(args.id))
+        product: (_:any, args:{ id: string }) => data.find((product: any) => product.id === parseInt(args.id)),
+        users: () => users,
+        userCount: () => users.length,
+        findUserByName: (_:any, args:{ name: string }) => users.find((user: User) => user.name === args.name),
+        findUserById: (_:any, args: { id: string}) => users.find((user: User) => user.id === parseInt(args.id))
+    },
+    Mutation: {
+        addUser: (_:any, args:User) => {
+            const newUser = {
+                ...args, id: randomInt(1, 1000)
+            }
+            users.push(newUser)
+            return newUser
+        }
     }
 
 }
