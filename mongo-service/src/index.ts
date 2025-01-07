@@ -8,8 +8,13 @@ import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHt
 import bodyParser from "body-parser"
 import { expressMiddleware } from '@apollo/server/express4' 
 import { PubSub } from 'graphql-subscriptions';
+import mongoose from 'mongoose';
+import * as dotenv from 'dotenv';
+import CommentModel from './models/Comment.model';
+dotenv.config();
 
 
+const MONGODB = `mongodb+srv://admin:${process.env.MONGO_PASS}@graphql-example.jjnxr.mongodb.net/?retryWrites=true&w=majority&appName=graphql-example`
 
 const pubSub = new PubSub()
 
@@ -21,6 +26,7 @@ const typeDefs = `
 
     type Query {
         sayHello: String!
+        getComment(id:ID!): Comment
     }
 
     type Mutation {
@@ -34,7 +40,8 @@ const typeDefs = `
 
 const resolvers = {
     Query: {
-        sayHello: () => 'Hello World'
+        sayHello: () => 'Hello World',
+        getComment: async (__dirname, { id }) => await CommentModel.findById(id)
     },
     Subscription: {
         commentAdded: {
@@ -42,11 +49,18 @@ const resolvers = {
         }
     },
     Mutation: {
-        createComment: (_, { name }) => {
+        createComment: async (_, { name }) => {
             //TODO: Create comment
-            pubSub.publish('COMMENT_ADDED', { commentAdded: { name, endDate: new Date().toISOString() } })
+            const endDate = new Date().toISOString()
+            const newComment = new CommentModel({ name, endDate })
+            const res = await newComment.save()
 
-            return `Comment: ${name} created`
+            if (!res.errors) {
+                pubSub.publish('COMMENT_ADDED', { commentAdded: { name, endDate: new Date().toISOString() } })
+                return `Comment: ${name} created`
+            }
+    
+            return 'Error creating comment'
         }
     }
 
@@ -89,6 +103,9 @@ const apolloServer = new ApolloServer({
 await apolloServer.start();
 
 app.use('/graphql', bodyParser.json(), expressMiddleware(apolloServer))
+
+mongoose.set('strictQuery', false)
+mongoose.connect(MONGODB)
 
 httpServer.listen(PORT, () => {
     console.log(`Server ready at http://localhost:${PORT}/graphql`);
